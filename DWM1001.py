@@ -36,7 +36,13 @@ def getDistance():
             if c_ord == 32: # ESC
                 break
     lx.reset()
-    print(distList)
-    print(timeList)
+    dwmDf = pd.DataFrame({'time': timeList, 'distance': distList})
+    now = datetime.now()
+    fileName = str(now.strftime('%Y-%m-%d %H:%M:%S'))+".csv"
     
+    os.chdir("Python-RPI-RTLS/csv/")
+    dwmDf.to_csv(fileName, index=False)
+    os.chdir("../../")
+
+  
 getDistance()
