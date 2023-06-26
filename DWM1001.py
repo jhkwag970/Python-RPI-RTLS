@@ -2,7 +2,7 @@ from serial import Serial
 from datetime import datetime
 import os, time, warnings
 import pandas as pd
-import kbhit
+import kbhit, math
 warnings.filterwarnings("ignore")
 
 port = "/dev/ttyACM0"
@@ -37,8 +37,9 @@ def toDistCSV(timeList, distList):
     now = datetime.now()
     fileName = str(now.strftime('%Y-%m-%d %H:%M:%S'))+".csv"
     
-    os.chdir("Python-RPI-RTLS/csv/")
+    os.chdir("Python-RPI-RTLS/dwm1001_csv/")
     dwmDf.to_csv(fileName, index=False)
     os.chdir("../../")
     
 getDistance()
+
