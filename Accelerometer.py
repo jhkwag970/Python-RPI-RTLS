@@ -77,29 +77,48 @@ K_0 = 1
 def Accelerometer2():
     i2c = board.I2C()  # uses board.SCL and board.SDA
     icm = adafruit_icm20x.ICM20948(i2c)
+    
     lx = kbhit.lxTerm()
     lx.start()
-    y_esti,x_esti, P, K = None, None, None, None
+    y_esti,x_esti, P_x, P_y, K = None, None, None, None, None
     x_measList = []
     y_measList = []
     x_estiList = []
     y_estiList = []
+    dateList=[]
+    v_x.append(0)
+    v_y.append(0)
+    p_x.append(0)
+    p_y.append(0)
     i = 0
+    x_cal, y_cal = accelCalibration(icm)
+    #x_cal2, y_cal2 = accelCalibration2(icm)
+    print([x_cal, y_cal])
     while True:
-        x_mea = icm.acceleration[0]+0.186786123
-        y_mea = icm.acceleration[1]+0.178759483
+        date =datetime.now().strftime('%S.%f')
+        accel = icm.acceleration
+        x_mea = accel[0]-x_cal
+        y_mea = accel[1]-y_cal
+
+        
         print([x_mea, y_mea])
+        print()
         if i == 0:
-            y_esti, x_esti, P, K = y_0, x_0, P_0, K_0
+            y_esti, x_esti, P_x, P_y, K = y_0, x_0,P_0, P_0, K_0
             i+=1
         else:
-            x_esti, P, K = kalman_filter(x_mea, x_esti, P)
-            y_esti, P, K = kalman_filter(y_mea, y_esti, P)
+            x_esti, P_x = kalman_filter(x_mea, x_esti, P_x)
+            y_esti, P_y = kalman_filter(y_mea, y_esti, P_y)
+            i+=1
 
         x_measList.append(x_mea)
         y_measList.append(y_mea)
         x_estiList.append(x_esti)
         y_estiList.append(y_esti)
+        dateList.append(float(date))
+
+        if i >= 2:
+            position(dateList, x_estiList, y_estiList)
 
         if lx.kbhit(): 
             c = lx.getch() 
@@ -107,11 +126,42 @@ def Accelerometer2():
             if c_ord == 32: # Spacebar
                 print("\nStop")
                 break 
-        time.sleep(0.1)
+        time.sleep(0.5)
     
-    df = pd.DataFrame({"x": x_measList, "y": y_measList, "x_est":x_estiList, "y_est": y_estiList})
+    df = pd.DataFrame({"date": dateList,"x": x_measList, "y": y_measList, "x_est":x_estiList, "y_est": y_estiList, "v_x": v_x, "v_y": v_y, "p_x":p_x, "p_y":p_y})
     toCSV(accelPath, "accel.csv", df)
 
+def accelCalibration(icm):
+    x_cal = 0
+    y_cal = 0
+    print("Calibration Start")
+    for s in range(20):
+        accel = icm.acceleration
+        x_cal += accel[0]
+        y_cal += accel[1]
+        time.sleep(0.5)
+    print("Calibration Done")
+    x_cal /= 20
+    y_cal /= 20
+
+    return x_cal, y_cal
+
+def accelCalibration2(icm):
+    x_cal = 0
+    y_cal = 0
+    x=np.array([])
+    y=np.array([])
+    print("Calibration Start")
+    for s in range(20):
+        accel = icm.acceleration
+        np.append(x, accel[0])
+        np.append(y, accel[1])
+        time.sleep(0.5)
+    print("Calibration Done")
+    x_cal = (x.max() + x.min())/2.0
+    y_cal = (y.max() + y.min())/2.0
+
+    return x_cal, y_cal
 
 def kalman_filter(z_meas, x_esti, P):
     """Kalman Filter Algorithm for One Variable.
@@ -130,7 +180,7 @@ def kalman_filter(z_meas, x_esti, P):
     # (4) Error Covariance.
     P = P_pred - K * H * P_pred
 
-    return x_esti, P, K
+    return x_esti, P
 
 def Accelerometer3():
     i2c = board.I2C()  # uses board.SCL and board.SDA
@@ -207,7 +257,7 @@ def position(dateList, x, y):
     p_x.append(position_x)
     p_y.append(position_y)
 
-Accelerometer3()
+Accelerometer2()
 
 
 
