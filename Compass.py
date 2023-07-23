@@ -7,17 +7,31 @@ import board
 import adafruit_icm20x
 
 analysisPath = "Python-RPI-RTLS/mag_csv/"
+#Trial 1: -12.45 7.65
+#Trial 2: -17.9999 6.074999
+hCalX = 16.322921
+hCalY = -7.212200
+hCalZ = -22.263491
 
-calX = -12.45
-calY = 7.65
+sCal1= [1.103134, -0.014659, 0.025388]
+sCal2= [-0.014659, 1.040778, 0.014565]
+sCal3= [0.025388, 0.014565,  0.979180]
 def toCSV(path, fileName, df):
     os.chdir(path)
     df.to_csv(fileName, index=False)
     os.chdir("../../")
 
 def getHeading(magnetic):
-    x = magnetic[0]+calX
-    y = magnetic[1]+calY
+    x = magnetic[0] - hCalX
+    y = magnetic[1] - hCalY
+    z = magnetic[2]
+    A = np.array([sCal1, sCal2, sCal3])
+    B = np.array([[x],[y],[z]])
+    Cal = np.matmul(A, B)
+    x = Cal[0][0]
+    y = Cal[1][0]
+    z = Cal[2][0]
+
     compassHeading = -1    
     if y == 0:
         if x >0:
@@ -50,8 +64,8 @@ def calibrationDataCollection():
                 print("\nStop")
                 break
         
-        x = icm.magnetic[0]-12.45
-        y = icm.magnetic[1]+7.65
+        x = icm.magnetic[0]
+        y = icm.magnetic[1]
         z = icm.magnetic[2]
         print([x,y,z])
 
@@ -63,16 +77,16 @@ def calibrationDataCollection():
         # print((max(y)+min(y))/2)
         # print((max(z)+min(z))/2)
         # print()
-        time.sleep(0.1)
+        
     
     comp_df = pd.DataFrame({"x": xList, "y": yList, "z": zList})
-    # comp_df["offset_x"] = (comp_df.x.max()+comp_df.x.min())/2
-    # comp_df["offset_y"] = (comp_df.y.max()+comp_df.y.min())/2
-    # comp_df["offset_z"] = (comp_df.z.max()+comp_df.z.min())/2
-    # comp_df["cal_x"] = comp_df.x - comp_df.offset_x
-    # comp_df["cal_y"] = comp_df.y - comp_df.offset_y
-    # comp_df["cal_z"] = comp_df.z - comp_df.offset_z
-    toCSV(analysisPath, "Calibration_270.csv", comp_df)
+    comp_df["offset_x"] = (comp_df.x.max()+comp_df.x.min())/2
+    comp_df["offset_y"] = (comp_df.y.max()+comp_df.y.min())/2
+    comp_df["offset_z"] = (comp_df.z.max()+comp_df.z.min())/2
+    comp_df["cal_x"] = comp_df.x - comp_df.offset_x
+    comp_df["cal_y"] = comp_df.y - comp_df.offset_y
+    comp_df["cal_z"] = comp_df.z - comp_df.offset_z
+    toCSV(analysisPath, "CalibrationFlat.csv", comp_df)
 
 
 def Compass():
@@ -109,11 +123,6 @@ def movingAverageFilter(icm):
     filteredHeading /= stableNum
     return [compassHeading, filteredHeading]    
 
-#KalmanFilter
-def kalmanFilter(icm):
-    print("kalman")
-
-
 #LowPassFilter
 def LowPassCompass():
     i2c = board.I2C()  # uses board.SCL and board.SDA
@@ -124,7 +133,7 @@ def LowPassCompass():
     filteredHeading = compassHeading
     headingList=[]
     filteredHeadingList=[]
-    sensitivity = 0.5
+    sensitivity = 0.4
     while True:    
         compassHeading = getHeading(icm.magnetic)
         filteredHeading = filteredHeading * (1-sensitivity) + compassHeading * sensitivity
@@ -137,10 +146,11 @@ def LowPassCompass():
             if c_ord == 32: # Spacebar
                 print("\nStop")
                 break
-        time.sleep(0.5)
-
+        time.sleep(0.1)
     df = pd.DataFrame({"compassHeading": headingList, "filteredHeading": filteredHeadingList})
-    toCSV(analysisPath, "compass.csv",df) 
+    toCSV(analysisPath, "compass1.csv",df) 
     
 
+#calibrationDataCollection()
 LowPassCompass()
+

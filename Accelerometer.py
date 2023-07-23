@@ -80,7 +80,7 @@ def Accelerometer2():
     
     lx = kbhit.lxTerm()
     lx.start()
-    y_esti,x_esti, P_x, P_y, K = None, None, None, None, None
+    y_esti, x_esti, P_x, P_y, K = y_0, x_0,P_0, P_0, K_0
     x_measList = []
     y_measList = []
     x_estiList = []
@@ -101,24 +101,24 @@ def Accelerometer2():
         y_mea = accel[1]-y_cal
 
         
-        print([x_mea, y_mea])
-        print()
+        #print([x_mea, y_mea])
         if i == 0:
-            y_esti, x_esti, P_x, P_y, K = y_0, x_0,P_0, P_0, K_0
             i+=1
         else:
             x_esti, P_x = kalman_filter(x_mea, x_esti, P_x)
             y_esti, P_y = kalman_filter(y_mea, y_esti, P_y)
             i+=1
 
-        x_measList.append(x_mea)
-        y_measList.append(y_mea)
-        x_estiList.append(x_esti)
-        y_estiList.append(y_esti)
-        dateList.append(float(date))
+        if i >=3:
+            x_measList.append(x_mea)
+            y_measList.append(y_mea)
+            x_estiList.append(x_esti)
+            y_estiList.append(y_esti)
+            dateList.append(float(date))
 
-        if i >= 2:
-            position(dateList, x_estiList, y_estiList)
+            if i >=4:
+                position(dateList, x_estiList, y_estiList)
+    
 
         if lx.kbhit(): 
             c = lx.getch() 
@@ -127,9 +127,9 @@ def Accelerometer2():
                 print("\nStop")
                 break 
         time.sleep(0.5)
-    
+    fileName = str(datetime.now().strftime('%Y-%m-%d %H%M%S'))+".csv"
     df = pd.DataFrame({"date": dateList,"x": x_measList, "y": y_measList, "x_est":x_estiList, "y_est": y_estiList, "v_x": v_x, "v_y": v_y, "p_x":p_x, "p_y":p_y})
-    toCSV(accelPath, "accel.csv", df)
+    toCSV(accelPath, fileName, df)
 
 def accelCalibration(icm):
     x_cal = 0
@@ -243,7 +243,7 @@ def Accelerometer3():
 
 def position(dateList, x, y):
     global v_x, v_y, p_x, p_y 
-    diff_time = dateList[-1] - dateList[-2]
+    diff_time = 0.5
     
     velocity_x = v_x[-1] + 0.5 *(x[-1] + x[-2]) * (diff_time)
     velocity_y = v_y[-1] + 0.5 *(y[-1] + y[-2]) * (diff_time)

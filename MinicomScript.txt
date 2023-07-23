@@ -1,2 +1,0 @@
-send "\n\r"
-send "lec"
