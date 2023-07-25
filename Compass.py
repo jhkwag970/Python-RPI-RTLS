@@ -9,6 +9,12 @@ import adafruit_icm20x
 analysisPath = "Python-RPI-RTLS/mag_csv/"
 #Trial 1: -12.45 7.65
 #Trial 2: -17.9999 6.074999
+#0.5204260257859987 -11.392350809461004
+#0.7371782007859977 -11.346112334460999
+#0.8691691257859961 -12.161573009461002
+tmpCalX= 0
+tmpCalY= 0
+
 hCalX = 16.322921
 hCalY = -7.212200
 hCalZ = -22.263491
@@ -21,16 +27,27 @@ def toCSV(path, fileName, df):
     df.to_csv(fileName, index=False)
     os.chdir("../../")
 
-def getHeading(magnetic):
-    x = magnetic[0] - hCalX
-    y = magnetic[1] - hCalY
-    z = magnetic[2]
+def getCalibarion(x,y,z):
+    x -= hCalX
+    y -= hCalY
     A = np.array([sCal1, sCal2, sCal3])
     B = np.array([[x],[y],[z]])
     Cal = np.matmul(A, B)
-    x = Cal[0][0]
-    y = Cal[1][0]
+
+    x = Cal[0][0] 
+    y = Cal[1][0] 
     z = Cal[2][0]
+
+    return x,y
+
+def getHeading(magnetic):
+    x = magnetic[0]
+    y = magnetic[1]
+    z = magnetic[2]
+
+    x, y = getCalibarion(x,y,z)
+    x -= tmpCalX
+    y -= tmpCalY
 
     compassHeading = -1    
     if y == 0:
@@ -54,6 +71,7 @@ def calibrationDataCollection():
     xList=[]
     yList=[]
     zList=[]
+    print("Calibration Start")
     while True:
         #print(icm.magnetic)
 
@@ -61,13 +79,13 @@ def calibrationDataCollection():
             c = lx.getch()
             c_ord = ord(c)
             if c_ord == 32: # Spacebar
-                print("\nStop")
+                print("\nCalibration Stop")
                 break
         
         x = icm.magnetic[0]
         y = icm.magnetic[1]
         z = icm.magnetic[2]
-        print([x,y,z])
+        #print([x,y,z])
 
         xList.append(x)
         yList.append(y)
@@ -87,6 +105,7 @@ def calibrationDataCollection():
     comp_df["cal_y"] = comp_df.y - comp_df.offset_y
     comp_df["cal_z"] = comp_df.z - comp_df.offset_z
     toCSV(analysisPath, "CalibrationFlat.csv", comp_df)
+    return comp_df.offset_x[0], comp_df.offset_x[1]
 
 
 def Compass():
@@ -123,8 +142,45 @@ def movingAverageFilter(icm):
     filteredHeading /= stableNum
     return [compassHeading, filteredHeading]    
 
+def beforeDataColection(icm):
+    
+    lx = kbhit.lxTerm()
+    lx.start()
+    xList=[]
+    yList=[]
+    zList=[]
+    print("Calibration Start")
+    while True:
+        #print(icm.magnetic)
+
+        if lx.kbhit(): 
+            c = lx.getch()
+            c_ord = ord(c)
+            if c_ord == 32: # Spacebar
+                print("\nCalibration Stop")
+                break
+        
+        x = icm.magnetic[0]
+        y = icm.magnetic[1]
+        z = icm.magnetic[2]
+        #print([x,y,z])
+
+        x, y = getCalibarion(x,y,z)
+
+        xList.append(x)
+        yList.append(y)
+        zList.append(z)
+        
+    
+    comp_df = pd.DataFrame({"x": xList, "y": yList, "z": zList})
+    offsetX = (comp_df.x.max()+comp_df.x.min())/2
+    offsetY = (comp_df.y.max()+comp_df.y.min())/2
+    print(offsetX, offsetY)
+    return offsetX, offsetY
+
 #LowPassFilter
 def LowPassCompass():
+    global tmpCalX, tmpCalY
     i2c = board.I2C()  # uses board.SCL and board.SDA
     icm = adafruit_icm20x.ICM20948(i2c)
     lx = kbhit.lxTerm()
@@ -134,6 +190,9 @@ def LowPassCompass():
     headingList=[]
     filteredHeadingList=[]
     sensitivity = 0.4
+
+    tmpCalX, tmpCalY = beforeDataColection(icm)
+
     while True:    
         compassHeading = getHeading(icm.magnetic)
         filteredHeading = filteredHeading * (1-sensitivity) + compassHeading * sensitivity
