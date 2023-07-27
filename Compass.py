@@ -12,8 +12,8 @@ analysisPath = "Python-RPI-RTLS/mag_csv/"
 #0.5204260257859987 -11.392350809461004
 #0.7371782007859977 -11.346112334460999
 #0.8691691257859961 -12.161573009461002
-tmpCalX= 0
-tmpCalY= 0
+tmpCalX= -1.4932897742140003
+tmpCalY= -4.161397634460999
 
 hCalX = 16.322921
 hCalY = -7.212200
@@ -191,7 +191,7 @@ def LowPassCompass():
     filteredHeadingList=[]
     sensitivity = 0.4
 
-    tmpCalX, tmpCalY = beforeDataColection(icm)
+    #tmpCalX, tmpCalY = beforeDataColection(icm)
 
     while True:    
         compassHeading = getHeading(icm.magnetic)
@@ -207,9 +207,20 @@ def LowPassCompass():
                 break
         time.sleep(0.1)
     df = pd.DataFrame({"compassHeading": headingList, "filteredHeading": filteredHeadingList})
-    toCSV(analysisPath, "compass1.csv",df) 
+    df["fMax"] = df.filteredHeading.max()
+    df["fMin"] = df.filteredHeading.min()
+    df["fMean"] = df.filteredHeading.mean()
+    df["fStd"] = df.filteredHeading.std()
+
+    df["cMax"] = df.compassHeading.max()
+    df["cMin"] = df.compassHeading.min()
+    df["cMean"] = df.compassHeading.mean()
+    df["cStd"] = df.compassHeading.std()
+    
+    toCSV(analysisPath, "compass"+str(sensitivity)+".csv",df) 
+    return df
     
 
 #calibrationDataCollection()
-LowPassCompass()
+df = LowPassCompass()
 

@@ -9,8 +9,8 @@ import time
 import board
 import adafruit_icm20x
 
-tmpCalX= 0
-tmpCalY= 0
+tmpCalX= -1.9303944992140032
+tmpCalY= -1.5171074844610022
 
 hCalX = 16.322921
 hCalY = -7.212200
@@ -102,36 +102,38 @@ def getData():
     dateList=[]
     distList = []
     timeCnt = 0
-
+ 
     compassHeading = getHeading(icm.magnetic)
     filteredHeading = compassHeading
     headingList=[]
     filteredHeadingList=[]
-    sensitivity = 0.4
+    sensitivity = 0.5
+
+    res = ser.readline()
+    dist= res.decode()[:len(res)-1].split(",")[distIndex]
+    filteredDist = dist
+    distList=[]
+    filteredDistList=[]
+    dSensitivity = 0.5
+
+
 
     tmpCalX, tmpCalY = beforeDataColection(icm)
+    print(tmpCalX, tmpCalY)
 
     while True:
-        res = ser.readline()
-        dist= res.decode()[:len(res)-1].split(",")[distIndex]
-        
         compassHeading = getHeading(icm.magnetic)
         filteredHeading = filteredHeading * (1-sensitivity) + compassHeading * sensitivity
         headingList.append(compassHeading)
         filteredHeadingList.append(filteredHeading)
+
+        res = ser.readline()
+        dist= res.decode()[:len(res)-1].split(",")[distIndex]
+        filteredDist = filteredDist * (1-dSensitivity) + dist * dSensitivity
+        distList.append(dist)
+        filteredDistList.append(filteredDist)
         
-
         date = datetime.now()
-
-        # if len(dist) == 0:
-        #     print("Data Stop")
-        #     timeCnt+=1
-        #     time.sleep(0.5)
-        #     continue
-        # else:
-        #     if(timeCnt > 0):
-        #         print("Data Return")
-        #     timecnt = 0
 
         print("[%s]  %.2f  %s" %(str(date), compassHeading, dist))
 
