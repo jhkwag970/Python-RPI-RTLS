@@ -17,7 +17,7 @@ IMU uses 3-axis of Gyroscope, Accelerometer, and Magnetometer to measure the ori
 
 More info: https://www.adafruit.com/product/4554
 
-<h4>Past Update</h4>
+# Past Update
 
 <ol>
   <li>Implement DWM1001 - IMU to RPI</li>
